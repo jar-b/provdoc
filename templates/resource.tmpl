@@ -1,0 +1,29 @@
+# {{ .Name }}
+
+{{- if or .Required .Optional }}
+## Argument Reference
+{{- end }}
+
+{{- if .Required }}
+The following arguments are required:
+{{- range .Required }}
+- `{{ .Name }}` - (Required, type: {{ .Type }}) {{ .Description }}
+{{- end }}
+{{- end }}
+
+{{- if .Optional }}
+The following arguments are optional:
+{{- range .Optional }}
+- `{{ .Name }}` - (Optional, type: {{ .Type }}) {{ .Description }}
+{{- end }}
+{{- end }}
+
+
+{{- if .Computed }}
+## Attribute Reference
+
+In addition to all arguments above, the following attributes are exported:
+{{- range .Computed }}
+- `{{ .Name }}` - (type: {{ .Type }}) {{ .Description }}
+{{- end }}
+{{- end }}
