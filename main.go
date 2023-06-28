@@ -8,7 +8,7 @@ import (
 	"os"
 	"text/template"
 
-	"github.com/charmbracelet/bubbles/textarea"
+	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/glamour"
@@ -22,12 +22,17 @@ const width = 118
 var resourceTemplate string
 
 var (
-	helpStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Render
+	helpStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("241"))
 	viewportStyle = lipgloss.NewStyle().
 			BorderStyle(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("62")).
 			PaddingRight(2).
 			PaddingLeft(2)
+	cursorStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("212"))
+	cursorLineStyle = lipgloss.NewStyle().
+			Background(lipgloss.Color("57")).
+			Foreground(lipgloss.Color("230"))
 )
 
 func main() {
@@ -49,27 +54,22 @@ type model struct {
 	err             error
 	providerSchemas tfjson.ProviderSchemas
 	renderer        *glamour.TermRenderer
-	textarea        textarea.Model
+	textinput       textinput.Model
 	viewport        viewport.Model
 }
 
 func newModel() (*model, error) {
-	ta := textarea.New()
-	ta.Placeholder = "aws_instance"
-	ta.Prompt = "┃ "
-	ta.CharLimit = 200
-	ta.ShowLineNumbers = false
-	ta.KeyMap.InsertNewline.SetEnabled(false)
-
-	ta.SetWidth(width)
-	ta.SetHeight(1)
-	ta.Focus()
-
-	// Remove cursor line styling
-	ta.FocusedStyle.CursorLine = lipgloss.NewStyle()
+	ti := textinput.New()
+	ti.Placeholder = "aws_instance"
+	ti.Prompt = "┃ "
+	ti.CharLimit = 200
+	ti.TextStyle = cursorLineStyle
+	ti.Cursor.Style = cursorStyle
+	ti.Focus()
 
 	vp := viewport.New(width, 25)
 	vp.Style = viewportStyle
+	// TODO: move vp.KeyMap into its own configuration?
 
 	rend, err := glamour.NewTermRenderer(
 		glamour.WithAutoStyle(),
@@ -101,7 +101,7 @@ Search results will be displayed here.`,
 		len(providers), len(resources)))
 
 	return &model{
-		textarea:        ta,
+		textinput:       ti,
 		viewport:        vp,
 		providerSchemas: ps,
 		renderer:        rend,
@@ -110,7 +110,7 @@ Search results will be displayed here.`,
 }
 
 func (m model) Init() tea.Cmd {
-	return textarea.Blink
+	return textinput.Blink
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -119,19 +119,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		vpCmd tea.Cmd
 	)
 
-	m.textarea, tiCmd = m.textarea.Update(msg)
+	m.textinput, tiCmd = m.textinput.Update(msg)
 	m.viewport, vpCmd = m.viewport.Update(msg)
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyCtrlC, tea.KeyEsc:
-			fmt.Println(m.textarea.Value())
 			return m, tea.Quit
 		case tea.KeyEnter:
 			var content string
 
-			name := m.textarea.Value()
+			name := m.textinput.Value()
 			match := m.SearchSchemas(name)
 			if match == nil {
 				content = fmt.Sprintf("No matches found for '%s'.\n", name)
@@ -149,7 +148,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			m.viewport.SetYOffset(0)
 			m.viewport.SetContent(content)
-			m.textarea.Reset()
+			m.textinput.Reset()
 		}
 
 	// We handle errors just like any other message
@@ -164,14 +163,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m model) View() string {
 	return fmt.Sprintf(
 		"Enter a resource name:\n\n%s\n\n%s\n%s",
-		m.textarea.View(),
+		m.textinput.View(),
 		m.viewport.View(),
 		m.helpView(),
 	)
 }
 
 func (m model) helpView() string {
-	return helpStyle("  ↑/↓: Navigate • ctrl+c/esc: Quit\n")
+	return helpStyle.Render("  ↑/↓: Navigate • ctrl+c/esc: Quit\n")
 }
 
 func (m model) SearchSchemas(s string) *tfjson.Schema {
