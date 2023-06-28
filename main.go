@@ -204,10 +204,11 @@ func readProviderSchemas() (tfjson.ProviderSchemas, error) {
 }
 
 type docData struct {
-	Name     string
-	Required []attribute
-	Optional []attribute
-	Computed []attribute
+	Name        string
+	Description string
+	Required    []attribute
+	Optional    []attribute
+	Computed    []attribute
 }
 
 type attribute struct {
@@ -229,7 +230,13 @@ func renderSchemaContent(name string, schema *tfjson.Schema) (string, error) {
 			comp = append(comp, attribute{Name: k, Type: v.AttributeType.GoString(), Description: v.Description})
 		}
 	}
-	data := docData{Name: name, Required: req, Optional: opt, Computed: comp}
+	data := docData{
+		Name:        name,
+		Description: schema.Block.Description,
+		Required:    req,
+		Optional:    opt,
+		Computed:    comp,
+	}
 
 	tmpl, err := template.New("resource").Parse(resourceTemplate)
 	if err != nil {
