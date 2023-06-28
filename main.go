@@ -73,7 +73,15 @@ var (
 )
 
 func main() {
-	m, err := newModel()
+	// Initialize provider schemas
+	// TODO: default to dynamic loading by executing terraform command,
+	// optionally allow loading from file
+	ps, err := readProviderSchemas("example-config/schema.json")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	m, err := newModel(ps)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -95,7 +103,7 @@ type model struct {
 	viewport        viewport.Model
 }
 
-func newModel() (*model, error) {
+func newModel(schemas tfjson.ProviderSchemas) (*model, error) {
 	ti := textinput.New()
 	ti.Placeholder = "aws_instance"
 	ti.Prompt = "┃ "
@@ -116,16 +124,10 @@ func newModel() (*model, error) {
 		return nil, err
 	}
 
-	// Initialize provider schemas
-	ps, err := readProviderSchemas()
-	if err != nil {
-		return nil, err
-	}
-
 	// TODO: display loaded provider names?
 	// TODO: use resource list for auto-fill?
 	var providers, resources []string
-	for k, v := range ps.Schemas {
+	for k, v := range schemas.Schemas {
 		providers = append(providers, k)
 		for k2 := range v.ResourceSchemas {
 			resources = append(resources, k2)
@@ -140,7 +142,7 @@ Search results will be displayed here.`,
 	return &model{
 		textinput:       ti,
 		viewport:        vp,
-		providerSchemas: ps,
+		providerSchemas: schemas,
 		renderer:        rend,
 		err:             nil,
 	}, nil
@@ -224,10 +226,10 @@ func (m model) SearchSchemas(s string) *tfjson.Schema {
 	return nil
 }
 
-func readProviderSchemas() (tfjson.ProviderSchemas, error) {
+func readProviderSchemas(filename string) (tfjson.ProviderSchemas, error) {
 	var p tfjson.ProviderSchemas
 
-	b, err := os.ReadFile("example-config/schema.json")
+	b, err := os.ReadFile(filename)
 	if err != nil {
 		return p, err
 	}
