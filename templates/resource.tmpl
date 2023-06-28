@@ -10,6 +10,9 @@
 The following arguments are required:
 {{ range .Required }}
 - `{{ .Name }}` - (Required, type: {{ .Type }}) {{ .Description }}
+{{- range .Attributes }}
+  - `{{ .Name }}` - (type: {{ .Type }}) {{ .Description }}
+{{- end }}
 {{ end }}
 {{- end }}
 
@@ -17,6 +20,9 @@ The following arguments are required:
 The following arguments are optional:
 {{ range .Optional }}
 - `{{ .Name }}` - (Optional, type: {{ .Type }}) {{ .Description }}
+{{- range .Attributes }}
+  - `{{ .Name }}` - (type: {{ .Type }}) {{ .Description }}
+{{- end }}
 {{ end }}
 {{- end }}
 
@@ -27,5 +33,8 @@ The following arguments are optional:
 In addition to all arguments above, the following attributes are exported:
 {{ range .Computed }}
 - `{{ .Name }}` - (type: {{ .Type }}) {{ .Description }}
+{{- range .Attributes }}
+  - `{{ .Name }}` - (type: {{ .Type }}) {{ .Description }}
+{{- end }}
 {{ end }}
 {{- end }}

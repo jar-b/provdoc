@@ -273,6 +273,7 @@ type attribute struct {
 	Name        string
 	Type        string
 	Description string
+	Attributes  attributes
 }
 
 type attributes []attribute
@@ -280,17 +281,40 @@ type attributes []attribute
 func renderSchemaContent(name string, schema *tfjson.Schema) (string, error) {
 	var req, opt, comp attributes
 	for k, v := range schema.Block.Attributes {
+		name := k
+		attrType := v.AttributeType.GoString()
+		desc := v.Description
+
 		if v.Required {
-			req = append(req, attribute{Name: k, Type: v.AttributeType.GoString(), Description: v.Description})
+			req = append(req, attribute{Name: name, Type: attrType, Description: desc})
 		}
 		if v.Optional {
-			opt = append(opt, attribute{Name: k, Type: v.AttributeType.GoString(), Description: v.Description})
+			opt = append(opt, attribute{Name: name, Type: attrType, Description: desc})
 		}
 		if v.Computed && !v.Optional {
-			comp = append(comp, attribute{Name: k, Type: v.AttributeType.GoString(), Description: v.Description})
+			comp = append(comp, attribute{Name: name, Type: attrType, Description: desc})
 		}
 	}
-	// TODO: handle nested blocks
+
+	// Note: Attributes within nested blocks are only displayed one level deep.
+	// A potential enhancement could store this data more generically to allow
+	// for further nesting and simplified templating.
+	for k, v := range schema.Block.NestedBlocks {
+		name := k
+		attrType := string(v.NestingMode)
+		desc := v.Block.Description
+
+		var attrs attributes
+		for k2, v2 := range v.Block.Attributes {
+			attrs = append(attrs, attribute{Name: k2, Type: v2.AttributeType.GoString(), Description: v2.Description})
+		}
+
+		if v.MinItems > 0 {
+			req = append(req, attribute{Name: name, Type: attrType, Description: desc, Attributes: attrs})
+		} else {
+			opt = append(opt, attribute{Name: name, Type: attrType, Description: desc, Attributes: attrs})
+		}
+	}
 
 	req.sort()
 	opt.sort()
