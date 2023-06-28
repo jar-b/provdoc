@@ -29,6 +29,10 @@ const (
 var resourceTemplate string
 
 var (
+	cursorLineStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("212"))
+	cursorStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("212"))
 	helpStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("241"))
 	viewportStyle = lipgloss.NewStyle().
@@ -36,11 +40,6 @@ var (
 			BorderForeground(lipgloss.Color("62")).
 			PaddingRight(2).
 			PaddingLeft(2)
-	cursorStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("212"))
-	cursorLineStyle = lipgloss.NewStyle().
-			Background(lipgloss.Color("57")).
-			Foreground(lipgloss.Color("230"))
 
 	// viewportKeyMap sets custom key bindings for the viewport.
 	//
@@ -110,6 +109,7 @@ func newModel(schemas tfjson.ProviderSchemas) (*model, error) {
 	ti.Prompt = "┃ "
 	ti.CharLimit = 200
 	ti.TextStyle = cursorLineStyle
+	ti.PromptStyle = cursorStyle
 	ti.Cursor.Style = cursorStyle
 	ti.Focus()
 
@@ -287,6 +287,8 @@ func renderSchemaContent(name string, schema *tfjson.Schema) (string, error) {
 			comp = append(comp, attribute{Name: k, Type: v.AttributeType.GoString(), Description: v.Description})
 		}
 	}
+	// TODO: handle nested blocks
+	// TODO: sort attributes
 	data := docData{
 		Name:        name,
 		Description: schema.Block.Description,
