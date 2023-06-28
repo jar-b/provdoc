@@ -2,11 +2,11 @@
 
 .PHONY: build
 build: clean ## Build binaries
-	@go build -o tfind
+	@go build -o provdoc
 
 .PHONY: clean
 clean: ## Clean up binaries
-	@rm -f tfind
+	@rm -f provdoc
 
 .PHONY: help
 help:
