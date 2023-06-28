@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"text/template"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -35,7 +36,8 @@ var (
 			BorderForeground(lipgloss.Color("62")).
 			PaddingRight(2).
 			PaddingLeft(2)
-	cursorStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("212"))
+	cursorStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("212"))
 	cursorLineStyle = lipgloss.NewStyle().
 			Background(lipgloss.Color("57")).
 			Foreground(lipgloss.Color("230"))
@@ -74,9 +76,8 @@ var (
 
 func main() {
 	// Initialize provider schemas
-	// TODO: default to dynamic loading by executing terraform command,
-	// optionally allow loading from file
-	ps, err := readProviderSchemas("example-config/schema.json")
+	// TODO: optionally allow loading from file
+	ps, err := loadProviderSchemas()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -224,6 +225,24 @@ func (m model) SearchSchemas(s string) *tfjson.Schema {
 		}
 	}
 	return nil
+}
+
+func loadProviderSchemas() (tfjson.ProviderSchemas, error) {
+	var p tfjson.ProviderSchemas
+
+	b, err := exec.Command("terraform", "providers", "schema", "-json").Output()
+	if err != nil {
+		if b != nil {
+			log.Printf(string(b))
+		}
+		return p, err
+	}
+
+	if err := p.UnmarshalJSON(b); err != nil {
+		return p, err
+	}
+
+	return p, nil
 }
 
 func readProviderSchemas(filename string) (tfjson.ProviderSchemas, error) {
