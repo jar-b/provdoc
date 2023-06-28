@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"sort"
 	"text/template"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -263,9 +264,9 @@ func readProviderSchemas(filename string) (tfjson.ProviderSchemas, error) {
 type docData struct {
 	Name        string
 	Description string
-	Required    []attribute
-	Optional    []attribute
-	Computed    []attribute
+	Required    attributes
+	Optional    attributes
+	Computed    attributes
 }
 
 type attribute struct {
@@ -274,8 +275,10 @@ type attribute struct {
 	Description string
 }
 
+type attributes []attribute
+
 func renderSchemaContent(name string, schema *tfjson.Schema) (string, error) {
-	var req, opt, comp []attribute
+	var req, opt, comp attributes
 	for k, v := range schema.Block.Attributes {
 		if v.Required {
 			req = append(req, attribute{Name: k, Type: v.AttributeType.GoString(), Description: v.Description})
@@ -288,7 +291,10 @@ func renderSchemaContent(name string, schema *tfjson.Schema) (string, error) {
 		}
 	}
 	// TODO: handle nested blocks
-	// TODO: sort attributes
+
+	req.sort()
+	opt.sort()
+	comp.sort()
 	data := docData{
 		Name:        name,
 		Description: schema.Block.Description,
@@ -308,4 +314,10 @@ func renderSchemaContent(name string, schema *tfjson.Schema) (string, error) {
 	}
 
 	return b.String(), nil
+}
+
+func (a attributes) sort() {
+	sort.Slice(a, func(i, j int) bool {
+		return a[i].Name < a[j].Name
+	})
 }
