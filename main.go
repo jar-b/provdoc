@@ -8,6 +8,7 @@ import (
 	"os"
 	"text/template"
 
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
@@ -16,7 +17,12 @@ import (
 	tfjson "github.com/hashicorp/terraform-json"
 )
 
-const width = 118
+const (
+	spacebar = " "
+
+	viewportWidth  = 118
+	viewportHeight = 25
+)
 
 //go:embed templates/resource.tmpl
 var resourceTemplate string
@@ -33,6 +39,37 @@ var (
 	cursorLineStyle = lipgloss.NewStyle().
 			Background(lipgloss.Color("57")).
 			Foreground(lipgloss.Color("230"))
+
+	// viewportKeyMap sets custom key bindings for the viewport.
+	//
+	// The default keybindings (j, k, u, d, etc.) for navigation can cause
+	// the viewport to jump around during searches if not overridden.
+	viewportKeyMap = viewport.KeyMap{
+		PageDown: key.NewBinding(
+			key.WithKeys("pgdown", spacebar),
+			key.WithHelp("pgdn", "page down"),
+		),
+		PageUp: key.NewBinding(
+			key.WithKeys("pgup"),
+			key.WithHelp("pgup", "page up"),
+		),
+		HalfPageUp: key.NewBinding(
+			key.WithKeys("ctrl+u"),
+			key.WithHelp("ctrl+u", "½ page up"),
+		),
+		HalfPageDown: key.NewBinding(
+			key.WithKeys("ctrl+d"),
+			key.WithHelp("ctrl+d", "½ page down"),
+		),
+		Up: key.NewBinding(
+			key.WithKeys("up"),
+			key.WithHelp("↑", "up"),
+		),
+		Down: key.NewBinding(
+			key.WithKeys("down"),
+			key.WithHelp("↓", "down"),
+		),
+	}
 )
 
 func main() {
@@ -67,13 +104,13 @@ func newModel() (*model, error) {
 	ti.Cursor.Style = cursorStyle
 	ti.Focus()
 
-	vp := viewport.New(width, 25)
+	vp := viewport.New(viewportWidth, viewportHeight)
 	vp.Style = viewportStyle
-	// TODO: move vp.KeyMap into its own configuration?
+	vp.KeyMap = viewportKeyMap
 
 	rend, err := glamour.NewTermRenderer(
 		glamour.WithAutoStyle(),
-		glamour.WithWordWrap(width),
+		glamour.WithWordWrap(viewportWidth),
 	)
 	if err != nil {
 		return nil, err
@@ -170,7 +207,7 @@ func (m model) View() string {
 }
 
 func (m model) helpView() string {
-	return helpStyle.Render("  ↑/↓: Navigate • ctrl+c/esc: Quit\n")
+	return helpStyle.Render("  ↑/↓, PgUp/PgDown: Navigate • ctrl+c/esc: Quit\n")
 }
 
 func (m model) SearchSchemas(s string) *tfjson.Schema {
