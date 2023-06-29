@@ -211,7 +211,7 @@ func (m model) View() string {
 }
 
 func (m model) helpView() string {
-	return helpStyle.Render("  ↑/↓, PgUp/PgDown: Navigate • ctrl+c/esc: Quit\n")
+	return helpStyle.Render("  ↑/↓, PgUp/PgDn: Navigate • ctrl+c/esc: Quit\n")
 }
 
 func (m model) SearchSchemas(s string) *tfjson.Schema {
