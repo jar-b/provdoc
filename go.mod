@@ -1,4 +1,4 @@
-module main
+module github.com/jar-b/provdoc
 
 go 1.20
 
