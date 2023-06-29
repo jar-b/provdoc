@@ -1,11 +1,13 @@
 Output demo.gif
 
+Require terraform
+
 Set FontSize 13
 Set Width 1200
 Set Height 600
 Set TypingSpeed 150ms
 
-Type "../provdoc"
+Type "./provdoc"
 Enter
 
 Sleep 2s

@@ -1,23 +1,31 @@
 .DEFAULT_GOAL:=help
 
+BIN=provdoc
+DEMODIR=demo
+
 .PHONY: build
 build: clean ## Build binaries
-	@go build -o provdoc
+	@go build -o $(BIN)
 
 .PHONY: clean
 clean: ## Clean up binaries
-	@rm -f provdoc
+	@rm -f $(BIN)
 
 .PHONY: help
 help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-12s\033[0m %s\n", $$1, $$2}'
 
 .PHONY: record-demo
-record-demo: build vhs clean ## Record a demo
+record-demo: ## Record a demo
+	@go build -o $(BIN)
+	@mv $(BIN) $(DEMODIR)/
+	@cd $(DEMODIR) && \
+		vhs demo.tape && \
+		rm $(BIN)
 
 .PHONY: regen-schema
 regen-schema: ## Re-generate provider schema data
-	@cd demo && \
+	@cd $(DEMODIR) && \
 		terraform init && \
 		terraform providers schema -json > schema.json
 
@@ -25,7 +33,3 @@ regen-schema: ## Re-generate provider schema data
 test: ## Run unit tests
 	@go test -v -coverprofile=coverage.txt ./...
 
-.PHONY: vhs
-vhs:
-	@cd demo && \
-		vhs demo.tape
