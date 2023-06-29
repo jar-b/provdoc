@@ -22,7 +22,7 @@ Sleep 3s
 Type "aws_iam_role"
 Enter
 Sleep 3s
-Ctrl+D
+Space
 Sleep 3s
 
 Escape
