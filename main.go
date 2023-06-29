@@ -1,14 +1,12 @@
 package main
 
 import (
-	"bytes"
 	_ "embed"
 	"fmt"
 	"log"
 	"os"
 	"os/exec"
-	"sort"
-	"text/template"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -17,6 +15,7 @@ import (
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
 	tfjson "github.com/hashicorp/terraform-json"
+	"github.com/hashicorp/terraform-plugin-docs/schemamd"
 )
 
 const (
@@ -176,12 +175,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if match == nil {
 				content = fmt.Sprintf("No matches found for '%s'.\n", name)
 			} else {
-				raw, err := renderSchemaContent(name, match)
-				if err != nil {
+				b := &strings.Builder{}
+				if err := schemamd.Render(match, b); err != nil {
 					// TODO: handle this
 				}
 
-				content, err = m.renderer.Render(raw)
+				var err error
+				formatted := fmt.Sprintf("# %s\n\n%s\n\n%s", name, match.Block.Description, b.String())
+				content, err = m.renderer.Render(formatted)
 				if err != nil {
 					// TODO: handle this
 				}
@@ -259,89 +260,4 @@ func readProviderSchemas(filename string) (tfjson.ProviderSchemas, error) {
 	}
 
 	return p, nil
-}
-
-type docData struct {
-	Name        string
-	Description string
-	Required    attributes
-	Optional    attributes
-	Computed    attributes
-}
-
-type attribute struct {
-	Name        string
-	Type        string
-	Description string
-	Attributes  attributes
-}
-
-type attributes []attribute
-
-func renderSchemaContent(name string, schema *tfjson.Schema) (string, error) {
-	var req, opt, comp attributes
-	for k, v := range schema.Block.Attributes {
-		name := k
-		attrType := v.AttributeType.GoString()
-		desc := v.Description
-
-		if v.Required {
-			req = append(req, attribute{Name: name, Type: attrType, Description: desc})
-		}
-		if v.Optional {
-			opt = append(opt, attribute{Name: name, Type: attrType, Description: desc})
-		}
-		if v.Computed && !v.Optional {
-			comp = append(comp, attribute{Name: name, Type: attrType, Description: desc})
-		}
-	}
-
-	// Note: Attributes within nested blocks are only displayed one level deep.
-	// A potential enhancement could store this data more generically to allow
-	// for further nesting and simplified templating.
-	for k, v := range schema.Block.NestedBlocks {
-		name := k
-		attrType := string(v.NestingMode)
-		desc := v.Block.Description
-
-		var attrs attributes
-		for k2, v2 := range v.Block.Attributes {
-			attrs = append(attrs, attribute{Name: k2, Type: v2.AttributeType.GoString(), Description: v2.Description})
-		}
-
-		if v.MinItems > 0 {
-			req = append(req, attribute{Name: name, Type: attrType, Description: desc, Attributes: attrs})
-		} else {
-			opt = append(opt, attribute{Name: name, Type: attrType, Description: desc, Attributes: attrs})
-		}
-	}
-
-	req.sort()
-	opt.sort()
-	comp.sort()
-	data := docData{
-		Name:        name,
-		Description: schema.Block.Description,
-		Required:    req,
-		Optional:    opt,
-		Computed:    comp,
-	}
-
-	tmpl, err := template.New("resource").Parse(resourceTemplate)
-	if err != nil {
-		return "", err
-	}
-
-	b := &bytes.Buffer{}
-	if err := tmpl.Execute(b, data); err != nil {
-		return "", err
-	}
-
-	return b.String(), nil
-}
-
-func (a attributes) sort() {
-	sort.Slice(a, func(i, j int) bool {
-		return a[i].Name < a[j].Name
-	})
 }
