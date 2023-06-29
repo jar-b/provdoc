@@ -25,9 +25,6 @@ const (
 	viewportHeight = 25
 )
 
-//go:embed templates/resource.tmpl
-var resourceTemplate string
-
 var (
 	cursorLineStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("212"))
@@ -171,7 +168,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			var content string
 
 			name := m.textinput.Value()
-			match := m.SearchSchemas(name)
+			match := m.searchSchemas(name)
 			if match == nil {
 				content = fmt.Sprintf("No matches found for '%s'.\n", name)
 			} else {
@@ -215,7 +212,7 @@ func (m model) helpView() string {
 	return helpStyle.Render("  ↑/↓, PgUp/PgDn: Navigate • ctrl+c/esc: Quit\n")
 }
 
-func (m model) SearchSchemas(s string) *tfjson.Schema {
+func (m model) searchSchemas(s string) *tfjson.Schema {
 	// TODO: aggregate results in the case of multiple matches?
 	// TODO: allow targeted searching between resources/data sources
 	for _, prov := range m.providerSchemas.Schemas {
