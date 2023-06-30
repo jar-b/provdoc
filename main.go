@@ -231,9 +231,6 @@ func loadProviderSchemas() (tfjson.ProviderSchemas, error) {
 
 	b, err := exec.Command("terraform", "providers", "schema", "-json").Output()
 	if err != nil {
-		if b != nil {
-			log.Printf(string(b))
-		}
 		return p, err
 	}
 
