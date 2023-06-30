@@ -1,7 +1,6 @@
 package main
 
 import (
-	_ "embed"
 	"fmt"
 	"log"
 	"os"
@@ -178,14 +177,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else {
 				b := &strings.Builder{}
 				if err := schemamd.Render(match, b); err != nil {
-					// TODO: handle this
+					m.err = err
+					return m, tea.Quit
 				}
+				formatted := fmt.Sprintf("# %s\n\n%s\n\n%s", name, match.Block.Description, b.String())
 
 				var err error
-				formatted := fmt.Sprintf("# %s\n\n%s\n\n%s", name, match.Block.Description, b.String())
 				content, err = m.renderer.Render(formatted)
 				if err != nil {
-					// TODO: handle this
+					m.err = err
+					return m, tea.Quit
 				}
 			}
 
@@ -194,16 +195,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.textinput.Reset()
 		}
 
-	// We handle errors just like any other message
 	case errMsg:
 		m.err = msg
-		return m, nil
+		return m, tea.Quit
 	}
 
 	return m, tea.Batch(tiCmd, vpCmd)
 }
 
 func (m model) View() string {
+	if m.err != nil {
+		return fmt.Sprintf("\nModel enountered an error: %v\n\n", m.err)
+	}
+
 	return fmt.Sprintf(
 		"Enter a resource name:\n\n%s\n\n%s\n%s",
 		m.textinput.View(),
