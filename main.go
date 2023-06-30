@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"log"
 	"os"
@@ -53,6 +54,9 @@ func loadProviderSchemas(schemafile string) (tfjson.ProviderSchemas, error) {
 
 	if err := ps.UnmarshalJSON(b); err != nil {
 		return ps, err
+	}
+	if len(ps.Schemas) == 0 {
+		return ps, errors.New("no provider schemas found")
 	}
 
 	return ps, nil
