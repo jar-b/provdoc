@@ -49,8 +49,8 @@ At this phase the project is mostly a proof of concept. Some initial ideas for
 future enhancements include:
 
 - [ ] Persistent display of loaded providers
-- [ ] Support schema JSON file input
-- [ ] Filtered search (resources versus data sources) 
 - [ ] Fuzzy search for resource names
+- [ ] Filtered search (resources versus data sources) 
+- [ ] Alternate full screen display
 - [ ] Example configuration generation
 
