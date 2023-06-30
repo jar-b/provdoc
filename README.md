@@ -7,7 +7,7 @@ Terraform provider documentation in the terminal.
 ## Installation
 
 ```
-go install github.com/jar-b/provdoc
+go install github.com/jar-b/provdoc@latest
 ```
 
 ## Motivation
