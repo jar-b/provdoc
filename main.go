@@ -21,8 +21,13 @@ import (
 const (
 	spacebar = " "
 
-	viewportWidth  = 118
-	viewportHeight = 25
+	viewportWidth   = 118
+	viewportHeight  = 25
+	viewportPadding = 2
+
+	// wordwrapWidth adjusts relative to the viewport width to avoid
+	// rendering into viewport padding
+	wordwrapWidth = viewportWidth - 5
 )
 
 var (
@@ -35,8 +40,7 @@ var (
 	viewportStyle = lipgloss.NewStyle().
 			BorderStyle(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("62")).
-			PaddingRight(2).
-			PaddingLeft(2)
+			PaddingRight(viewportPadding)
 
 	// viewportKeyMap sets custom key bindings for the viewport.
 	//
@@ -116,7 +120,7 @@ func newModel(schemas tfjson.ProviderSchemas) (*model, error) {
 
 	rend, err := glamour.NewTermRenderer(
 		glamour.WithAutoStyle(),
-		glamour.WithWordWrap(viewportWidth),
+		glamour.WithWordWrap(wordwrapWidth),
 	)
 	if err != nil {
 		return nil, err
