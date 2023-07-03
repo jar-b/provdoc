@@ -27,6 +27,9 @@ const (
 )
 
 var (
+	inputHeadingStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("212")).
+				Bold(true)
 	cursorLineStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("212"))
 	cursorStyle = lipgloss.NewStyle().
@@ -85,7 +88,7 @@ type model struct {
 func newModel(schemas tfjson.ProviderSchemas) (*model, error) {
 	ti := textinput.New()
 	ti.Placeholder = "aws_instance"
-	ti.Prompt = "┃ "
+	ti.Prompt = "➜ "
 	ti.CharLimit = 200
 	ti.TextStyle = cursorLineStyle
 	ti.PromptStyle = cursorStyle
@@ -187,8 +190,13 @@ func (m model) View() string {
 		return fmt.Sprintf("\nModel enountered an error: %v\n\n", m.err)
 	}
 
-	return fmt.Sprintf(
-		"Enter a resource name:\n\n%s\n\n%s\n%s",
+	return fmt.Sprintf(`%s
+
+%s
+
+%s
+%s`,
+		inputHeadingStyle.Render("Enter a resource name:"),
 		m.textinput.View(),
 		m.viewport.View(),
 		m.helpView(),
