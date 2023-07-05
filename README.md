@@ -1,4 +1,5 @@
 # provdoc
+[![build](https://github.com/jar-b/provdoc/actions/workflows/build.yml/badge.svg)](https://github.com/jar-b/provdoc/actions/workflows/build.yml)
 
 Terraform provider documentation in the terminal.
 
