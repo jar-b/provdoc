@@ -79,25 +79,18 @@ type (
 
 type model struct {
 	err             error
+	index           []providerIndex
 	providerSchemas tfjson.ProviderSchemas
 	renderer        *glamour.TermRenderer
 	textinput       textinput.Model
 	viewport        viewport.Model
 }
 
-func newModel(schemas tfjson.ProviderSchemas) (*model, error) {
-	ti := textinput.New()
-	ti.Placeholder = "aws_instance"
-	ti.Prompt = "➜ "
-	ti.CharLimit = 200
-	ti.TextStyle = cursorLineStyle
-	ti.PromptStyle = cursorStyle
-	ti.Cursor.Style = cursorStyle
-	ti.Focus()
-
-	vp := viewport.New(viewportWidth, viewportHeight)
-	vp.Style = viewportStyle
-	vp.KeyMap = viewportKeyMap
+func newModel(opt options) (*model, error) {
+	ps, index, err := loadProviderSchemas(opt.schemafile)
+	if err != nil {
+		return nil, err
+	}
 
 	rend, err := glamour.NewTermRenderer(
 		glamour.WithAutoStyle(),
@@ -107,28 +100,34 @@ func newModel(schemas tfjson.ProviderSchemas) (*model, error) {
 		return nil, err
 	}
 
-	// TODO: display loaded provider names?
-	// TODO: use resource list for auto-fill?
-	var providers, resources []string
-	for k, v := range schemas.Schemas {
-		providers = append(providers, k)
-		for k2 := range v.ResourceSchemas {
-			resources = append(resources, k2)
-		}
-	}
-
-	vp.SetContent(fmt.Sprintf(`Loaded %d provider(s), %d resource(s).
-
-Search results will be displayed here.`,
-		len(providers), len(resources)))
-
 	return &model{
-		textinput:       ti,
-		viewport:        vp,
-		providerSchemas: schemas,
-		renderer:        rend,
 		err:             nil,
+		index:           index,
+		providerSchemas: ps,
+		renderer:        rend,
+		textinput:       newTextInput(),
+		viewport:        newViewport(),
 	}, nil
+}
+
+func newTextInput() textinput.Model {
+	ti := textinput.New()
+	ti.Placeholder = "aws_instance"
+	ti.Prompt = "➜ "
+	ti.CharLimit = 200
+	ti.TextStyle = cursorLineStyle
+	ti.PromptStyle = cursorStyle
+	ti.Cursor.Style = cursorStyle
+	ti.Focus()
+	return ti
+}
+
+func newViewport() viewport.Model {
+	vp := viewport.New(viewportWidth, viewportHeight)
+	vp.Style = viewportStyle
+	vp.KeyMap = viewportKeyMap
+	vp.SetContent("Search results will be displayed here.")
+	return vp
 }
 
 func (m model) Init() tea.Cmd {
