@@ -1,7 +1,10 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -73,9 +76,24 @@ var (
 	}
 )
 
-type (
-	errMsg error
-)
+// providerIndex stores resource and data source names for partial search
+type providerIndex struct {
+	Name        string
+	Resources   []string
+	DataSources []string
+}
+
+// errMsg wraps an error in a tea.Msg to be handled by the model update method
+type errMsg struct{ err error }
+
+func (e errMsg) Error() string { return e.err.Error() }
+
+// schemaMsg is the tea.Msg structure returned when provider schemas are loaded
+// from disk
+type schemaMsg struct {
+	ps    tfjson.ProviderSchemas
+	index []providerIndex
+}
 
 type model struct {
 	err             error
@@ -86,12 +104,7 @@ type model struct {
 	viewport        viewport.Model
 }
 
-func newModel(opt options) (*model, error) {
-	ps, index, err := loadProviderSchemas(opt.schemafile)
-	if err != nil {
-		return nil, err
-	}
-
+func newModel() (*model, error) {
 	rend, err := glamour.NewTermRenderer(
 		glamour.WithAutoStyle(),
 		glamour.WithWordWrap(wordwrapWidth),
@@ -101,12 +114,10 @@ func newModel(opt options) (*model, error) {
 	}
 
 	return &model{
-		err:             nil,
-		index:           index,
-		providerSchemas: ps,
-		renderer:        rend,
-		textinput:       newTextInput(),
-		viewport:        newViewport(),
+		err:       nil,
+		renderer:  rend,
+		textinput: newTextInput(),
+		viewport:  newViewport(),
 	}, nil
 }
 
@@ -126,12 +137,12 @@ func newViewport() viewport.Model {
 	vp := viewport.New(viewportWidth, viewportHeight)
 	vp.Style = viewportStyle
 	vp.KeyMap = viewportKeyMap
-	vp.SetContent("Search results will be displayed here.")
+	vp.SetContent("Loading providers...")
 	return vp
 }
 
 func (m model) Init() tea.Cmd {
-	return textinput.Blink
+	return loadProviderSchemas
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -144,6 +155,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.viewport, vpCmd = m.viewport.Update(msg)
 
 	switch msg := msg.(type) {
+	case schemaMsg:
+		m.index = msg.index
+		m.providerSchemas = msg.ps
+		m.viewport.SetContent(fmt.Sprintf("%d providers loaded. Ready to search.", len(msg.ps.Schemas)))
+		tiCmd = tea.Batch(tiCmd, textinput.Blink)
+
+	case errMsg:
+		m.err = msg
+		return m, tea.Quit
+
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyCtrlC, tea.KeyEsc:
@@ -175,10 +196,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.viewport.SetContent(content)
 			m.textinput.Reset()
 		}
-
-	case errMsg:
-		m.err = msg
-		return m, tea.Quit
 	}
 
 	return m, tea.Batch(tiCmd, vpCmd)
@@ -218,4 +235,46 @@ func (m model) searchSchemas(s string) *tfjson.Schema {
 		}
 	}
 	return nil
+}
+
+// loadProviderSchemas handles fetching configured provider schemas. If
+// a schemafile is specified, the schema is read from disk, otherwise,
+// the schema is loaded on-demand by executing `terraform providers schema -json`.
+// The resource and data source names are also indexed for each provider.
+func loadProviderSchemas() tea.Msg {
+	var (
+		ps  tfjson.ProviderSchemas
+		b   []byte
+		err error
+	)
+
+	if schemafile == "" {
+		b, err = exec.Command("terraform", "providers", "schema", "-json").Output()
+	} else {
+		b, err = os.ReadFile(schemafile)
+	}
+	if err != nil {
+		return errMsg{err}
+	}
+
+	if err := ps.UnmarshalJSON(b); err != nil {
+		return errMsg{err}
+	}
+	if len(ps.Schemas) == 0 {
+		return errMsg{errors.New("no provider schemas found")}
+	}
+
+	var index []providerIndex
+	for k, v := range ps.Schemas {
+		pi := providerIndex{Name: k}
+		for r := range v.ResourceSchemas {
+			pi.Resources = append(pi.Resources, r)
+		}
+		for ds := range v.DataSourceSchemas {
+			pi.DataSources = append(pi.DataSources, ds)
+		}
+		index = append(index, pi)
+	}
+
+	return schemaMsg{ps, index}
 }

@@ -7,17 +7,13 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-// options stores flag values for use by downstream model operations
-type options struct {
-	schemafile string
-}
+var schemafile string
 
 func main() {
-	var schemafile string
 	flag.StringVar(&schemafile, "schemafile", "", "JSON file storing provider schema data")
 	flag.Parse()
 
-	m, err := newModel(options{schemafile: schemafile})
+	m, err := newModel()
 	if err != nil {
 		log.Fatal(err)
 	}
