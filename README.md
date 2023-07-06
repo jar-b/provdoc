@@ -11,6 +11,23 @@ Terraform provider documentation in the terminal.
 go install github.com/jar-b/provdoc@latest
 ```
 
+## Usage
+
+```console
+$ provdoc -h
+Usage of provdoc:
+  -schemafile string
+        JSON file storing provider schema data
+```
+
+```sh
+# Load live from the `terraform providers schema -json` command
+provdoc
+
+# Load from an exported JSON file
+provdoc -schemafile schema.json
+```
+
 ## Motivation
 
 Writing Terraform can require frequent context switching between the editor
@@ -22,24 +39,23 @@ directly in the terminal.
 ## Requirements
 
 - [Terraform](https://www.terraform.io/)
-- An initialized Terraform project
+- An initialized Terraform project OR exported JSON schema file.
 
 ## How does it work?
 
 `provdoc` should be executed in a directory with an initialized Terraform project.
-On startup, the program executes `terraform providers schema -json` gathering up
+On startup, the program executes `terraform providers schema -json` (or reads in 
+exported data if the `-schemafile` argument is provided), gathering up
 the schema documentation for all providers currently configured in the project. Once
-the schema is ingested, the [TUI](https://en.wikipedia.org/wiki/Text-based_user_interface)
-(text-based user interface) program starts. This consists of a simple text input
-and viewport, where resource/data source names can be entered into the text input and
-the corresponding schema documentation is rendered into the viewport. As providers
-are added or removed, the program can be restarted and the additional schema documentation
-will be picked up automatically.
+the schema is ingested, a text input enables searching the schema documentation by 
+resource/data source name, and the resulting content is rendered into the viewport. 
+As providers are added or removed, the program can be restarted and the additional 
+schema documentation will be picked up automatically.
 
 This project relies heavily on the following:
 
 - [hashicorp/terraform-json](https://github.com/hashicorp/terraform-json) - Provider schema processing
-- [hashicorp/terraform-plugin-docs](https://github.com/hashicorp/terraform-plugin-docs) - Rendering schema documentation
+- [hashicorp/terraform-plugin-docs](https://github.com/hashicorp/terraform-plugin-docs) - Provider schema markdown rendering
 - The [Charm](https://github.com/charmbracelet) ecosystem of command line tools, most notably:
   - [charmbracelet/bubbletea](https://github.com/charmbracelet/bubbletea)
   - [charmbracelet/glamour](https://github.com/charmbracelet/glamour)
