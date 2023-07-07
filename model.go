@@ -92,14 +92,10 @@ const (
 	// modeResource expects searches for partial resource or data source names
 	// and returns a list of matching names from all configured providers.
 	modeResource mode = "Resource"
-)
 
-// providerIndex stores resource and data source names for partial search
-type providerIndex struct {
-	Name        string
-	Resources   []string
-	DataSources []string
-}
+	modeSchemaPlaceholder   = "aws_instance"
+	modeResourcePlaceholder = "ec2"
+)
 
 // errMsg wraps an error in a tea.Msg to be handled by the model update method
 type errMsg struct{ err error }
@@ -109,13 +105,11 @@ func (e errMsg) Error() string { return e.err.Error() }
 // schemaMsg is the tea.Msg structure returned when provider schemas are loaded
 // from disk
 type schemaMsg struct {
-	ps    tfjson.ProviderSchemas
-	index []providerIndex
+	ps tfjson.ProviderSchemas
 }
 
 type model struct {
 	err             error
-	index           []providerIndex
 	searchMode      mode
 	providerSchemas tfjson.ProviderSchemas
 	renderer        *glamour.TermRenderer
@@ -143,7 +137,7 @@ func newModel() (*model, error) {
 
 func newTextInput() textinput.Model {
 	ti := textinput.New()
-	ti.Placeholder = "aws_instance"
+	ti.Placeholder = modeSchemaPlaceholder
 	ti.Prompt = "➜ "
 	ti.CharLimit = 200
 	ti.TextStyle = cursorLineStyle
@@ -176,9 +170,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case schemaMsg:
-		m.index = msg.index
 		m.providerSchemas = msg.ps
-		m.viewport.SetContent(fmt.Sprintf("%d providers loaded. Ready to search.", len(msg.ps.Schemas)))
+		m.viewport.SetContent(m.postLoadingViewportView())
 		tiCmd = tea.Batch(tiCmd, textinput.Blink)
 
 	case errMsg:
@@ -193,10 +186,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyTab, tea.KeyShiftTab:
 			if m.searchMode == modeResource {
 				m.searchMode = modeSchema
-				m.textinput.Placeholder = "aws_instance"
+				m.textinput.Placeholder = modeSchemaPlaceholder
 			} else {
 				m.searchMode = modeResource
-				m.textinput.Placeholder = "ec2"
+				m.textinput.Placeholder = modeResourcePlaceholder
 			}
 
 		case tea.KeyEnter:
@@ -259,6 +252,17 @@ func (m model) modeView() string {
 	return modeStyle.Render(fmt.Sprintf("Mode: %s", m.searchMode))
 }
 
+// postLoadingViewportView will appear once provider data is loaded
+func (m model) postLoadingViewportView() string {
+	var names []string
+	for k := range m.providerSchemas.Schemas {
+		names = append(names, k)
+	}
+	sort.Strings(names)
+	return fmt.Sprintf("Ready to search. %d providers detected:\n\n- %s",
+		len(names), strings.Join(names, "\n- "))
+}
+
 // searchSchemas finds a resource or data source schema for
 // the search term. Rendered markdown content is returned.
 func (m model) searchSchemas(term string) (string, error) {
@@ -291,29 +295,11 @@ func (m model) searchSchemas(term string) (string, error) {
 // searchSchemas finds all resources or data sources containing
 // the search term. Rendered markdown content is returned.
 func (m model) searchResources(term string) (string, error) {
-	var matches []providerIndex
-	for k, v := range m.providerSchemas.Schemas {
-		pi := providerIndex{Name: k}
-		for r := range v.ResourceSchemas {
-			if strings.Contains(r, term) {
-				pi.Resources = append(pi.Resources, r)
-			}
-		}
-		for ds := range v.DataSourceSchemas {
-			if strings.Contains(ds, term) {
-				pi.DataSources = append(pi.DataSources, ds)
-			}
-		}
-		if len(pi.Resources) > 0 || len(pi.DataSources) > 0 {
-			sort.Strings(pi.Resources)
-			sort.Strings(pi.DataSources)
-			matches = append(matches, pi)
-		}
-	}
-
+	matches := indexProviderSchemasWithFilter(m.providerSchemas, term)
 	if len(matches) == 0 {
 		return notFoundContent(term), nil
 	}
+
 	// TODO: move parsing into a template
 	b := &strings.Builder{}
 	for _, match := range matches {
@@ -333,6 +319,38 @@ func (m model) searchResources(term string) (string, error) {
 	}
 
 	return m.renderer.Render(b.String())
+}
+
+// providerIndex stores resource and data source names for partial search
+type providerIndex struct {
+	Name        string
+	Resources   []string
+	DataSources []string
+}
+
+// indexProviderSchemasWithFilters returns an index of provider resources
+// and data sources which contain the search term
+func indexProviderSchemasWithFilter(ps tfjson.ProviderSchemas, term string) []providerIndex {
+	var filteredIndex []providerIndex
+	for k, v := range ps.Schemas {
+		pi := providerIndex{Name: k}
+		for r := range v.ResourceSchemas {
+			if strings.Contains(r, term) {
+				pi.Resources = append(pi.Resources, r)
+			}
+		}
+		for ds := range v.DataSourceSchemas {
+			if strings.Contains(ds, term) {
+				pi.DataSources = append(pi.DataSources, ds)
+			}
+		}
+		if len(pi.Resources) > 0 || len(pi.DataSources) > 0 {
+			sort.Strings(pi.Resources)
+			sort.Strings(pi.DataSources)
+			filteredIndex = append(filteredIndex, pi)
+		}
+	}
+	return filteredIndex
 }
 
 // loadProviderSchemas handles fetching configured provider schemas. If
@@ -362,19 +380,7 @@ func loadProviderSchemas() tea.Msg {
 		return errMsg{errors.New("no provider schemas found")}
 	}
 
-	var index []providerIndex
-	for k, v := range ps.Schemas {
-		pi := providerIndex{Name: k}
-		for r := range v.ResourceSchemas {
-			pi.Resources = append(pi.Resources, r)
-		}
-		for ds := range v.DataSourceSchemas {
-			pi.DataSources = append(pi.DataSources, ds)
-		}
-		index = append(index, pi)
-	}
-
-	return schemaMsg{ps, index}
+	return schemaMsg{ps}
 }
 
 func notFoundContent(term string) string {
