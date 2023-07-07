@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"sort"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -20,6 +21,7 @@ import (
 const (
 	spacebar = " "
 
+	modePadding     = 1
 	viewportWidth   = 118
 	viewportHeight  = 25
 	viewportPadding = 2
@@ -30,15 +32,20 @@ const (
 )
 
 var (
-	inputHeadingStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("212")).
-				Bold(true)
 	cursorLineStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("212"))
 	cursorStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("212"))
 	helpStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("241"))
+	inputHeadingStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("212")).
+				Bold(true)
+	modeStyle = lipgloss.NewStyle().
+			PaddingRight(modePadding).
+			PaddingLeft(modePadding).
+			Background(lipgloss.Color("62")).
+			Bold(true)
 	viewportStyle = lipgloss.NewStyle().
 			BorderStyle(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("62")).
@@ -76,6 +83,17 @@ var (
 	}
 )
 
+type mode string
+
+const (
+	// modeSchema expects searches for exact resource or data source names
+	// and returns the corresponding schema.
+	modeSchema mode = "Schema"
+	// modeResource expects searches for partial resource or data source names
+	// and returns a list of matching names from all configured providers.
+	modeResource mode = "Resource"
+)
+
 // providerIndex stores resource and data source names for partial search
 type providerIndex struct {
 	Name        string
@@ -98,6 +116,7 @@ type schemaMsg struct {
 type model struct {
 	err             error
 	index           []providerIndex
+	searchMode      mode
 	providerSchemas tfjson.ProviderSchemas
 	renderer        *glamour.TermRenderer
 	textinput       textinput.Model
@@ -114,10 +133,11 @@ func newModel() (*model, error) {
 	}
 
 	return &model{
-		err:       nil,
-		renderer:  rend,
-		textinput: newTextInput(),
-		viewport:  newViewport(),
+		err:        nil,
+		searchMode: modeSchema,
+		renderer:   rend,
+		textinput:  newTextInput(),
+		viewport:   newViewport(),
 	}, nil
 }
 
@@ -169,27 +189,29 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.Type {
 		case tea.KeyCtrlC, tea.KeyEsc:
 			return m, tea.Quit
+
+		case tea.KeyTab, tea.KeyShiftTab:
+			if m.searchMode == modeResource {
+				m.searchMode = modeSchema
+				m.textinput.Placeholder = "aws_instance"
+			} else {
+				m.searchMode = modeResource
+				m.textinput.Placeholder = "ec2"
+			}
+
 		case tea.KeyEnter:
 			var content string
-
+			var err error
 			name := m.textinput.Value()
-			match := m.searchSchemas(name)
-			if match == nil {
-				content = fmt.Sprintf("No matches found for '%s'.\n", name)
-			} else {
-				b := &strings.Builder{}
-				if err := schemamd.Render(match, b); err != nil {
-					m.err = err
-					return m, tea.Quit
-				}
-				formatted := fmt.Sprintf("# %s\n\n%s\n\n%s", name, match.Block.Description, b.String())
 
-				var err error
-				content, err = m.renderer.Render(formatted)
-				if err != nil {
-					m.err = err
-					return m, tea.Quit
-				}
+			if m.searchMode == modeSchema {
+				content, err = m.searchSchemas(name)
+			} else if m.searchMode == modeResource {
+				content, err = m.searchResources(name)
+			}
+			if err != nil {
+				m.err = err
+				return m, tea.Quit
 			}
 
 			m.viewport.SetYOffset(0)
@@ -211,30 +233,106 @@ func (m model) View() string {
 %s
 
 %s
-%s`,
-		inputHeadingStyle.Render("Enter a resource name:"),
+%s %s
+`,
+		m.headingView(),
 		m.textinput.View(),
 		m.viewport.View(),
+		m.modeView(),
 		m.helpView(),
 	)
 }
 
-func (m model) helpView() string {
-	return helpStyle.Render("  ↑/↓, PgUp/PgDn: Navigate • ctrl+c/esc: Quit\n")
+func (m model) headingView() string {
+	s := "Enter a resource name:"
+	if m.searchMode == modeResource {
+		s = "Enter a search term:"
+	}
+	return inputHeadingStyle.Render(s)
 }
 
-func (m model) searchSchemas(s string) *tfjson.Schema {
+func (m model) helpView() string {
+	return helpStyle.Render("↑/↓, PgUp/PgDn: Navigate • Tab: Toggle Mode • ctrl+c/esc: Quit")
+}
+
+func (m model) modeView() string {
+	return modeStyle.Render(fmt.Sprintf("Mode: %s", m.searchMode))
+}
+
+// searchSchemas finds a resource or data source schema for
+// the search term. Rendered markdown content is returned.
+func (m model) searchSchemas(term string) (string, error) {
 	// TODO: aggregate results in the case of multiple matches?
 	// TODO: allow targeted searching between resources/data sources
+	var match *tfjson.Schema
 	for _, prov := range m.providerSchemas.Schemas {
-		if v, ok := prov.ResourceSchemas[s]; ok {
-			return v
+		if v, ok := prov.ResourceSchemas[term]; ok {
+			match = v
+			break
 		}
-		if v, ok := prov.DataSourceSchemas[s]; ok {
-			return v
+		if v, ok := prov.DataSourceSchemas[term]; ok {
+			match = v
+			break
 		}
 	}
-	return nil
+
+	if match == nil {
+		return notFoundContent(term), nil
+	}
+	b := &strings.Builder{}
+	if err := schemamd.Render(match, b); err != nil {
+		return "", err
+	}
+	formatted := fmt.Sprintf("# %s\n\n%s\n\n%s", term, match.Block.Description, b.String())
+
+	return m.renderer.Render(formatted)
+}
+
+// searchSchemas finds all resources or data sources containing
+// the search term. Rendered markdown content is returned.
+func (m model) searchResources(term string) (string, error) {
+	var matches []providerIndex
+	for k, v := range m.providerSchemas.Schemas {
+		pi := providerIndex{Name: k}
+		for r := range v.ResourceSchemas {
+			if strings.Contains(r, term) {
+				pi.Resources = append(pi.Resources, r)
+			}
+		}
+		for ds := range v.DataSourceSchemas {
+			if strings.Contains(ds, term) {
+				pi.DataSources = append(pi.DataSources, ds)
+			}
+		}
+		if len(pi.Resources) > 0 || len(pi.DataSources) > 0 {
+			sort.Strings(pi.Resources)
+			sort.Strings(pi.DataSources)
+			matches = append(matches, pi)
+		}
+	}
+
+	if len(matches) == 0 {
+		return notFoundContent(term), nil
+	}
+	// TODO: move parsing into a template
+	b := &strings.Builder{}
+	for _, match := range matches {
+		b.WriteString(fmt.Sprintf("# %s\n\n", match.Name))
+		if len(match.Resources) > 0 {
+			b.WriteString("## Resources\n\n")
+			for _, r := range match.Resources {
+				b.WriteString(fmt.Sprintf("- `%s`\n", r))
+			}
+		}
+		if len(match.DataSources) > 0 {
+			b.WriteString("## Data Sources\n\n")
+			for _, ds := range match.DataSources {
+				b.WriteString(fmt.Sprintf("- `%s`\n", ds))
+			}
+		}
+	}
+
+	return m.renderer.Render(b.String())
 }
 
 // loadProviderSchemas handles fetching configured provider schemas. If
@@ -277,4 +375,8 @@ func loadProviderSchemas() tea.Msg {
 	}
 
 	return schemaMsg{ps, index}
+}
+
+func notFoundContent(term string) string {
+	return fmt.Sprintf("No matches found for '%s'.\n", term)
 }
