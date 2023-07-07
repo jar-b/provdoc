@@ -11,11 +11,18 @@ Terraform provider documentation in the terminal.
 go install github.com/jar-b/provdoc@latest
 ```
 
+## Requirements
+
+- [Terraform](https://www.terraform.io/)
+- An initialized Terraform project OR exported JSON schema file.
+
 ## Usage
 
 ```console
 $ provdoc -h
-Usage of provdoc:
+Usage: provdoc [flags]
+
+Flags:
   -schemafile string
         JSON file storing provider schema data
 ```
@@ -28,6 +35,26 @@ provdoc
 provdoc -schemafile schema.json
 ```
 
+`provdoc` should be executed in a directory with an initialized Terraform project.
+On startup, the program executes `terraform providers schema -json` (or reads in
+exported data if the `-schemafile` argument is provided), gathering up
+the schema documentation for all providers currently configured in the project.
+If providers are added or removed, the schema data can be reloaded with `Ctrl+R`.
+
+Once the schema is loaded two search modes are available.
+
+- `Schema` mode expects an exact resource or data source name as the search term, and
+will render the resulting schema documentation to the viewport. Example search terms
+are be [`random_string`](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/string)
+or [`aws_instance`](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/instance).
+
+- `Resource` mode accepts any search term, and will list all resources or data sources
+containing the term to the viewport. Example search terms are `random_` (ie. list all
+resources in the random provider) or `aws_ec2`.
+
+The active search mode is displayed in lower left corner, and can be toggled with
+`Tab`/`Shift+Tab`.
+
 ## Motivation
 
 Writing Terraform can require frequent context switching between the editor
@@ -36,21 +63,7 @@ adopting a new, unfamiliar provider. `provdoc` utilizes the existing
 documentation available from provider schemas to supply searchable documentation
 directly in the terminal.
 
-## Requirements
-
-- [Terraform](https://www.terraform.io/)
-- An initialized Terraform project OR exported JSON schema file.
-
-## How does it work?
-
-`provdoc` should be executed in a directory with an initialized Terraform project.
-On startup, the program executes `terraform providers schema -json` (or reads in 
-exported data if the `-schemafile` argument is provided), gathering up
-the schema documentation for all providers currently configured in the project. Once
-the schema is ingested, a text input enables searching the schema documentation by 
-resource/data source name, and the resulting content is rendered into the viewport. 
-As providers are added or removed, the program can be restarted and the additional 
-schema documentation will be picked up automatically.
+## Prior art
 
 This project relies heavily on the following:
 
@@ -65,9 +78,10 @@ This project relies heavily on the following:
 At this phase the project is mostly a proof of concept. Some initial ideas for
 future enhancements include:
 
-- [ ] Persistent display of loaded providers
-- [ ] Fuzzy search for resource names
-- [ ] Filtered search (resources versus data sources) 
+- [x] Display loaded providers at startup
+- [x] Fuzzy search for resource names
+- [x] Live reloading 
+- [ ] Paged results (resources and data sources of the same name)
 - [ ] Alternate full screen display
 - [ ] Example configuration generation
 
