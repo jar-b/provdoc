@@ -37,3 +37,6 @@ regen-schema: ## Re-generate provider schema data
 test: ## Run unit tests
 	@go test -v -coverprofile=coverage.txt ./...
 
+.PHONY: view-demo
+view-demo: ## View demo gif in the browser
+	@open $(DEMODIR)/demo.gif -a 'Google Chrome'
