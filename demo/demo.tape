@@ -15,14 +15,6 @@ Type "./provdoc"
 Enter
 Sleep 4s
 
-Tab
-Sleep 1s
-Type "random"
-Enter
-Sleep 4s
-
-Tab
-Sleep 1s
 Type "random_string"
 Enter
 Sleep 4s
