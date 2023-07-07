@@ -252,7 +252,7 @@ func (m model) headingView() string {
 }
 
 func (m model) helpView() string {
-	return helpStyle.Render("↑/↓, PgUp/PgDn: Navigate • Tab: Toggle Mode • ctrl+c/esc: Quit")
+	return helpStyle.Render(" ↑/↓, PgUp/PgDn: Navigate • Tab: Toggle Mode • ctrl+c/esc: Quit")
 }
 
 func (m model) modeView() string {

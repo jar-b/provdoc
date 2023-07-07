@@ -3,7 +3,7 @@ Output demo.gif
 Require terraform
 
 Set FontSize 13
-Set Width 1200
+Set Width 1100
 Set Height 600
 Set TypingSpeed 150ms
 
@@ -13,17 +13,25 @@ Sleep 3s
 
 Type "./provdoc"
 Enter
-Sleep 2s
+Sleep 4s
 
+Tab
+Sleep 1s
+Type "random"
+Enter
+Sleep 4s
+
+Tab
+Sleep 1s
 Type "random_string"
 Enter
-Sleep 3s
+Sleep 4s
 
 Type "aws_iam_role"
 Enter
-Sleep 3s
-Space
-Sleep 3s
+Sleep 4s
+PageDown
+Sleep 2s
 
 Escape
 
