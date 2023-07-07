@@ -84,6 +84,9 @@ var (
 type mode string
 
 const (
+	// loadingText is displayed in the viewport at startup and during reloads
+	loadingText = "Loading providers..."
+
 	// modeSchema expects searches for exact resource or data source names
 	// and returns the corresponding schema.
 	modeSchema mode = "Schema"
@@ -149,7 +152,7 @@ func newViewport() viewport.Model {
 	vp := viewport.New(viewportWidth, viewportHeight)
 	vp.Style = viewportStyle
 	vp.KeyMap = viewportKeyMap
-	vp.SetContent("Loading providers...")
+	vp.SetContent(loadingText)
 	return vp
 }
 
@@ -180,6 +183,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.Type {
 		case tea.KeyCtrlC, tea.KeyEsc:
 			return m, tea.Quit
+
+		case tea.KeyCtrlR:
+			m.viewport.SetContent(loadingText)
+			return m, loadProviderSchemas
 
 		case tea.KeyTab, tea.KeyShiftTab:
 			if m.searchMode == modeResource {
