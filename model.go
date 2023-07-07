@@ -19,8 +19,6 @@ import (
 )
 
 const (
-	spacebar = " "
-
 	modePadding     = 1
 	viewportWidth   = 118
 	viewportHeight  = 25
@@ -57,7 +55,7 @@ var (
 	// the viewport to jump around during searches if not overridden.
 	viewportKeyMap = viewport.KeyMap{
 		PageDown: key.NewBinding(
-			key.WithKeys("pgdown", spacebar),
+			key.WithKeys("pgdown"),
 			key.WithHelp("pgdn", "page down"),
 		),
 		PageUp: key.NewBinding(
