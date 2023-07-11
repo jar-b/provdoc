@@ -1,0 +1,6 @@
+# Ignore everything except the example terraform config
+*
+!.gitignore
+!main.tf
+!demo.tape
+!demo.gif
