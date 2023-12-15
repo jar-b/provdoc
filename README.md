@@ -63,6 +63,13 @@ adopting a new, unfamiliar provider. `provdoc` utilizes the existing
 documentation available from provider schemas to supply searchable documentation
 directly in the terminal.
 
+> Documentation is parsed and rendered from the provider schema, so the utility
+> of what is displayed is largely dependent on what the provider developer includes
+> there. Some providers (for example the AWS Terraform Provider)
+> maintain standalone registry documentation and leave the schema descriptions
+> empty. In these cases the tool can still provide argument name references, but
+> the content will be considerably less useful than the Terraform registry.
+
 ## Prior art
 
 This project relies heavily on the following:
