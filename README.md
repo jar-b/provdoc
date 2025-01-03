@@ -45,7 +45,7 @@ Once the schema is loaded two search modes are available.
 
 - `Schema` mode expects an exact resource or data source name as the search term, and
 will render the resulting schema documentation to the viewport. Example search terms
-are be [`random_string`](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/string)
+are [`random_string`](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/string)
 or [`aws_instance`](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/instance).
 
 - `Resource` mode accepts any search term, and will list all resources or data sources
@@ -63,6 +63,7 @@ adopting a new, unfamiliar provider. `provdoc` utilizes the existing
 documentation available from provider schemas to supply searchable documentation
 directly in the terminal.
 
+> [!NOTE]
 > Documentation is parsed and rendered from the provider schema, so the utility
 > of what is displayed is largely dependent on what the provider developer includes
 > there. Some providers (for example the AWS Terraform Provider)
